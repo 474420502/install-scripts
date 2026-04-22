@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # --- 配置参数 ---
-DEFAULT_GO_VERSION="1.24.3" # Let's use a more recent typical Go version
+DEFAULT_GO_VERSION="1.26.2"
 INSTALL_BASE_DIR="/usr/local/share"
 MIRRORS=(
     "https://golang.google.cn/dl/"
@@ -54,11 +54,34 @@ function detect_arch() {
     esac
 }
 
+function fetch_latest_go_version() {
+    local json_data; json_data=$(curl -s --max-time 10 "https://go.dev/dl/?mode=json" 2>/dev/null || true)
+    if [[ -z "$json_data" ]]; then
+        if command -v wget &>/dev/null; then
+            json_data=$(wget -q -O - --timeout=10 "https://go.dev/dl/?mode=json" 2>/dev/null || true)
+        fi
+    fi
+    if [[ -n "$json_data" ]]; then
+        local latest_version; latest_version=$(echo "$json_data" | grep -o '"version": "[^"]*"' | head -1 | sed 's/"version": "//;s/"//')
+        if [[ -n "$latest_version" ]]; then
+            echo "$latest_version"; return 0
+        fi
+    fi
+    return 1
+}
+
 # --- 主逻辑 ---
 function main() {
     check_root
-    local target_version; read -r -p "请输入要安装的 Go 版本 (默认为 ${DEFAULT_GO_VERSION}): " target_version
-    target_version="${target_version:-${DEFAULT_GO_VERSION}}"
+    local online_version; online_version=$(fetch_latest_go_version)
+    local display_version="${online_version:-${DEFAULT_GO_VERSION}}"
+    if [[ -n "$online_version" ]]; then
+        info "检测到最新 Go 版本: ${online_version} (预设: ${DEFAULT_GO_VERSION})"
+    else
+        warning "无法获取在线版本，使用预设版本: ${DEFAULT_GO_VERSION}"
+    fi
+    local target_version; read -r -p "请输入要安装的 Go 版本 (默认为 ${display_version}): " target_version
+    target_version="${target_version:-${display_version}}"
     info "将要安装/升级的 Go 版本: ${target_version}"
     if ! confirm_action "确认版本 ${target_version} 是否正确"; then info "操作已取消。"; exit 0; fi
 
