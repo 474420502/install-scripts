@@ -86,7 +86,8 @@ function main() {
     if ! confirm_action "确认版本 ${target_version} 是否正确"; then info "操作已取消。"; exit 0; fi
 
     local go_arch; go_arch=$(detect_arch); info "检测到系统架构: ${go_arch}"
-    local go_tar="go${target_version}.linux-${go_arch}.tar.gz"
+    local go_version_for_filename="${target_version#go}"
+    local go_tar="go${go_version_for_filename}.linux-${go_arch}.tar.gz"
 
     if [[ -x "${GOROOT_DIR}/bin/go" ]]; then
         current_version=$("${GOROOT_DIR}/bin/go" version | awk '{print $3}' | sed 's/go//')
